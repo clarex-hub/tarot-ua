@@ -1565,6 +1565,34 @@ function saveOpenRouterKey() {
     msg.innerHTML = '<div class="alert alert-success">OpenRouter ключ збережено!</div>';
 }
 
+// === KLASYFIKACJA 429 Z GEMINI ===
+// Rozróżnia limit DZIENNY (wyczerpana darmowa pula na dobę → fallback na OpenRouter)
+// od limitu NA MINUTĘ (przejściowy rate-limit → retry i pozostajemy na Gemini).
+// Free tier zwraca słowo "quota" w komunikacie w OBU przypadkach, dlatego samego
+// tekstu message nie da się użyć — decyduje quotaId/quotaMetric z error.details.
+function isGeminiDailyLimit(errBody) {
+    let sawPerMinute = false, sawPerDay = false;
+    try {
+        const details = errBody?.error?.details || [];
+        for (const d of details) {
+            const violations = d?.violations || [];
+            for (const v of violations) {
+                const id = ((v.quotaId || '') + ' ' + (v.quotaMetric || '')).toLowerCase();
+                if (id.includes('perminute') || id.includes('per_minute')) sawPerMinute = true;
+                if (id.includes('perday') || id.includes('per_day')) sawPerDay = true;
+            }
+        }
+    } catch (e) { /* ignorujemy */ }
+    if (sawPerDay) return true;      // wyraźny limit dobowy → OpenRouter
+    if (sawPerMinute) return false;  // wyraźny limit na minutę → retry Gemini
+    // Brak jednoznacznego quotaId — patrzymy na tekst, ale tylko na wyraźne sygnały dobowe
+    const msg = (errBody?.error?.message || '').toLowerCase();
+    if (msg.includes('per minute') || msg.includes('perminute')) return false;
+    if (msg.includes('per day') || msg.includes('perday') || msg.includes('daily')) return true;
+    // Domyślnie: traktuj jako limit na minutę → retry, NIE od razu OpenRouter
+    return false;
+}
+
 // === OPENROUTER FALLBACK ===
 // quintCardName - opcjonalna nazwa kwintesencji (string), przekazywana z funkcji wywołującej.
 //                 Bez tego parametru chatContext przy fallbacku gubi info o kwintesencji.
@@ -1839,7 +1867,7 @@ ${card.suit ? 'Масть: ' + card.suit : 'Старший Аркан'}
         if (response.status === 429) {
             const errBody = await response.json().catch(() => ({}));
             const errMsg = errBody?.error?.message || '';
-            const isDailyLimit = errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('exhausted') || errMsg.toLowerCase().includes('day');
+            const isDailyLimit = isGeminiDailyLimit(errBody);
             if (isDailyLimit) {
                 // Fallback to OpenRouter (karta dnia nie ma kwintesencji)
                 const result = await callOpenRouterStream(
@@ -2362,7 +2390,7 @@ ${quintessenceInfo}
         if (response.status === 429) {
             const errBody = await response.json().catch(() => ({}));
             const errMsg = errBody?.error?.message || '';
-            const isDailyLimit = errMsg.toLowerCase().includes('quota') || errMsg.toLowerCase().includes('exhausted') || errMsg.toLowerCase().includes('day');
+            const isDailyLimit = isGeminiDailyLimit(errBody);
             if (isDailyLimit) {
                 // Fallback to OpenRouter — przekazujemy nazwe kwintesencji
                 const result = await callOpenRouterStream(
