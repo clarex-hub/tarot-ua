@@ -1029,19 +1029,18 @@ function showManualEntry() {
     const active = document.getElementById('spread-active');
     const positions = currentSpread.positions;
 
-    // Datalist з усіма назвами карт
-    const datalistHtml = '<datalist id="card-names-list">' +
-        cards.map(c => '<option value="' + c.name + '">').join('') +
-        '</datalist>';
-
     const inputsHtml = positions.map((pos, i) =>
-        '<div style="margin-bottom:0.9rem;">' +
+        '<div style="margin-bottom:0.9rem;position:relative;">' +
         '<label style="display:block;color:#a89984;font-size:0.82rem;margin-bottom:0.25rem;">' +
         (i+1) + '. ' + pos +
         '</label>' +
-        '<input type="text" id="manual-card-' + i + '" list="card-names-list" autocomplete="off" placeholder="Назва карти..." ' +
+        '<input type="text" id="manual-card-' + i + '" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" placeholder="Назва карти..." ' +
+        'oninput="filterManualCards(' + i + ')" onfocus="filterManualCards(' + i + ')" onblur="hideManualSuggest(' + i + ')" ' +
         'style="width:100%;padding:0.55rem 0.8rem;background:rgba(0,0,0,0.5);border:1px solid rgba(212,175,55,0.4);' +
         'border-radius:6px;color:#e8d5b7;font-family:inherit;font-size:0.95rem;">' +
+        '<div id="manual-suggest-' + i + '" style="display:none;position:absolute;left:0;right:0;top:100%;z-index:50;' +
+        'max-height:220px;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#1a1410;' +
+        'border:1px solid rgba(212,175,55,0.4);border-radius:6px;margin-top:2px;box-shadow:0 6px 18px rgba(0,0,0,0.6);"></div>' +
         '</div>'
     ).join('');
 
@@ -1062,13 +1061,47 @@ function showManualEntry() {
         '<p style="color:#a89984;margin-bottom:1.5rem;">Введіть карти, які випали у фізичному розкладі</p>' +
         '<div style="max-width:480px;margin:0 auto;text-align:left;">' +
         questionBannerHtml +
-        datalistHtml +
         inputsHtml +
         '<div style="text-align:center;margin-top:1.5rem;">' +
         '<button class="draw-btn" onclick="confirmManualEntry()">✓ Підтвердити розклад</button>' +
         '</div>' +
         '</div>' +
         '</div>';
+}
+
+function filterManualCards(i) {
+    const input = document.getElementById('manual-card-' + i);
+    const box = document.getElementById('manual-suggest-' + i);
+    if (!input || !box) return;
+    const q = input.value.trim().toLowerCase();
+    let matches = q ? cards.filter(c => c.name.toLowerCase().includes(q)) : cards.slice();
+    matches = matches.slice(0, 40);
+    if (!matches.length) { box.style.display = 'none'; return; }
+    box.innerHTML = matches.map(c =>
+        '<div onmousedown="selectManualCard(' + i + ',' + c.id + ')" ontouchend="event.preventDefault();selectManualCard(' + i + ',' + c.id + ')" ' +
+        'style="padding:0.55rem 0.8rem;color:#e8d5b7;cursor:pointer;border-bottom:1px solid rgba(212,175,55,0.12);font-size:0.95rem;">' +
+        esc(c.name) + '</div>'
+    ).join('');
+    box.style.display = 'block';
+}
+
+function selectManualCard(i, cardId) {
+    const card = cards.find(c => c.id === cardId);
+    const input = document.getElementById('manual-card-' + i);
+    const box = document.getElementById('manual-suggest-' + i);
+    if (card && input) {
+        input.value = card.name;
+        input.style.borderColor = 'rgba(212,175,55,0.4)';
+        input.style.boxShadow = '';
+    }
+    if (box) box.style.display = 'none';
+}
+
+function hideManualSuggest(i) {
+    setTimeout(function() {
+        const box = document.getElementById('manual-suggest-' + i);
+        if (box) box.style.display = 'none';
+    }, 200);
 }
 
 function confirmManualEntry() {
