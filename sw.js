@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tarot-v40';
+const CACHE_NAME = 'tarot-v41';
 const ASSETS = [
   './',
   './index.html'
