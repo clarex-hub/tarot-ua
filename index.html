@@ -552,6 +552,28 @@ function saveLS(key, value) {
     }
 }
 
+// Bezpieczny odczyt localStorage: uszkodzony JSON nie wywala całej apki
+function loadLS(key, fallback) {
+    try {
+        const raw = localStorage.getItem(key);
+        if (raw == null) return fallback;
+        return JSON.parse(raw);
+    } catch (e) {
+        console.error('localStorage parse error:', key, e);
+        return fallback;
+    }
+}
+
+// Formatuje treść od AI (markdown -> HTML) po wcześniejszym escapowaniu (anty-XSS)
+function formatAiHtml(text) {
+    return '<p>' + esc(text)
+        .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#d4af37;">$1</strong>')
+        .replace(/###\s*(.+)/g, '<h4 style="color:#d4af37;margin:1.2rem 0 0.5rem;">$1</h4>')
+        .replace(/##\s*(.+)/g, '<h3 style="color:#d4af37;font-family:Cinzel,serif;margin:1.5rem 0 0.8rem;font-size:1.2rem;">$1</h3>')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/\n/g, '<br>') + '</p>';
+}
+
 // Fisher-Yates shuffle (zamiast biased sort(() => Math.random() - 0.5))
 function shuffle(arr) {
     const a = [...arr];
@@ -575,7 +597,7 @@ function abortCurrentStream() {
 }
 
 // === DATA ===
-let cards = JSON.parse(localStorage.getItem('tarot_cards')) || [
+let cards = loadLS('tarot_cards') || [
     { id: 0, name: "Блазень", nameEn: "The Fool", suit: null, image: "./cards/RWS_Tarot_00_Fool.jpg", keywords: ["початок", "спонтанність", "невинність", "ризик", "свобода"], description: "Карта символізує початок нового життєвого циклу, радикальний крок у невідоме та приплив чистої, нерозтраченої енергії. Це перехрестя доріг, де ви отримуєте повну свободу вибору і можливість почати все з «чистого аркуша» — такий стан рідко трапляється в житті і є справжнім благословенням. Блазень віщує несподівані повороти, здатні повністю перевернути поточний стан справ, і вказує на початок конкретного проєкту, хоча мета ще далека. Може символізувати реальну подорож або новий виток розвитку. Хоча ситуація виглядає хаотично, прямої загрози немає — доля прихильна до тих, хто наважується діяти.", spiritual: "Архетипно Блазень — це не лише «внутрішня дитина», а й Внутрішній Герой, який рухається назустріч долі без карти і компаса. Число 0 — священна порожнеча, що містить в потенціалі все суще: абсолютна свобода становлення, де нічого немає і може стати чим завгодно. Блазень уранічно асоціальний — «пристойні люди» з нього сміються, але він іде своїм шляхом до преображення, недоступного розумникам. Карта карми і веденості: «підкоряюся року» — стан, коли душа не прив'язана до умовностей і перебуває у вільній мандрівці.", advice: "Будьте відкритими до нового та не бійтеся здаватися смішними або нерозсудливими. Довіртеся інтуїції та зробіть крок уперед, адже зараз саме той момент, коли Всесвіт дарує вам рідкісну свободу діяти без озирання на минуле.", warning: "Не допускайте крайнього ступеня нерозсудливості та ігнорування очевидних небезпек, щоб не впасти у прірву через власну інфантильність. Пам'ятайте, що абсолютна свобода не звільняє від відповідальності за наслідки ваших вчинків." },
     { id: 1, name: "Маг", nameEn: "The Magician", suit: null, image: "./cards/RWS_Tarot_01_Magician.jpg", keywords: ["воля", "майстерність", "творення", "ресурси", "влада"], description: "Маг символізує активну життєву позицію, енергійність та час для рішучих дій. Ця карта вказує на те, що період бездіяльності завершився — у вас є всі необхідні ресурси, знання та влада, щоб керувати подіями та трансформувати своє оточення. З'являються нові можливості для вирішення старих проблем, причому очікується швидкий розвиток подій. Маг діє цілеспрямовано і свідомо — «сам захотів, сам зробив»: ви є головним героєм ситуації, і саме від вашої волі залежить, у який бік повернеться колесо долі.", spiritual: "Архетипно Маг — це Гермес-Меркурій, посередник між богами та людьми, який втілює принцип «що нагорі, то й внизу». Він є каналом, через який божественна творча енергія спускається у світ для матеріалізації ідей. Маг уособлює першу стадію самоусвідомлення, де особистість через волю та знання стає Майстром. На відміну від стихійної сили Туза Жезлів, його сила — усвідомлена і структурована: він перетворює ідеї на реальність через чітке наміряння.", advice: "Час очікування минув, переходьте до активних дій і беріть ініціативу у свої руки. Використовуйте свій розум, волю та всі наявні таланти, адже зараз ви маєте повний контроль над ситуацією.", warning: "Остерігайтеся самовпевненості та бажання маніпулювати іншими заради власної вигоди. Пам'ятайте, що ваші нинішні дії матимуть дуже потужний і тривалий відгомін, тому уникайте поспішних рішень." },
     { id: 2, name: "Верховна Жриця", nameEn: "The High Priestess", suit: null, image: "./cards/RWS_Tarot_02_High_Priestess.jpg", keywords: ["інтуїція", "таємниця", "мудрість", "підсвідомість", "пасивність"], description: "Верховна Жриця символізує присутність таємниці, яка відкриється лише у свій час. Вона втілює шосте чуття — інтуїцію, ясновидіння та внутрішній голос, що часто виявляється точнішим за раціональний розрахунок. Карта вказує на необхідність довіритися несвідомому та прислухатися до підказок долі, снів та «випадкових» збігів. Як зауважила Мері Грір: «Істину Верховної Жриці можна побачити лише боковим зором» — не через аналіз, а через дозвіл їй проявитися самостійно. У розкладах може також вказувати на жінку з оточення питаючого — дружину, матір, сестру або суперницю.", spiritual: "Архетипно Жриця є Великою Матір'ю, жіночим аспектом Божества, що охороняє браму таємних знань. Вона представляє пасивне, сприйнятливе начало Всесвіту, що врівноважує активну силу Мага. Жриця пов'язана з Місяцем та підсвідомістю — вона є хранителькою вселенської пам'яті про все, що було і буде. На відміну від Ієрофанта, чиє знання раціональне та структуроване, мудрість Жриці живе між рядків, у паузах і мовчанні.", advice: "Довіртеся своїй інтуїції та не поспішайте з активними діями, дозволяючи ситуації розвиватися природним шляхом. Прислухайтеся до внутрішнього голосу та звертайте увагу на знаки, які посилає вам життя. Зараз найкращий час для навчання, медитації та спокійного спостереження.", warning: "Не ігноруйте реальні факти, надмірно занурюючись у світ мрій або містичних ілюзій. Уникайте зайвої пасивності та нерішучості там, де обставини вимагають чіткої позиції." },
@@ -847,17 +869,17 @@ let spreads;
 
 if (savedVersion < SPREADS_VERSION) {
     // Зберігаємо тільки користувацькі розклади (id > 1000)
-    let oldSpreads = JSON.parse(localStorage.getItem('tarot_spreads')) || [];
+    let oldSpreads = loadLS('tarot_spreads') || [];
     let customSpreads = oldSpreads.filter(s => s.id > 1000);
     spreads = [...defaultSpreads, ...customSpreads];
     saveLS('tarot_spreads', spreads);
     saveLS('tarot_spreads_version', String(SPREADS_VERSION));
 } else {
-    spreads = JSON.parse(localStorage.getItem('tarot_spreads')) || defaultSpreads;
+    spreads = loadLS('tarot_spreads') || defaultSpreads;
 }
 
-let history = JSON.parse(localStorage.getItem('tarot_history')) || [];
-let settings = JSON.parse(localStorage.getItem('tarot_settings')) || { password: 'tarot2024', geminiApiKey: '', openRouterApiKey: '' };
+let history = loadLS('tarot_history') || [];
+let settings = loadLS('tarot_settings') || { password: 'tarot2024', geminiApiKey: '', openRouterApiKey: '' };
 // Migrate old settings without openRouterApiKey
 if (!('openRouterApiKey' in settings)) { settings.openRouterApiKey = ''; }
 let currentSpread = null, drawnCards = [], revealedCards = [];
@@ -1410,7 +1432,7 @@ async function runComplexAnalysis() {
                             const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
                             if (text) {
                                 fullText += text;
-                                streamingText.innerHTML = fullText.replace(/\*\*(.+?)\*\*/g, '<strong style="color:#d4af37;">$1</strong>').replace(/### (.+)/g, '<h3 style="color:#d4af37;font-family:Cinzel,serif;margin:1.5rem 0 0.8rem;font-size:1.15rem;">$1</h3>').replace(/## (.+)/g, '<h3 style="color:#d4af37;font-family:Cinzel,serif;margin:1.5rem 0 0.8rem;font-size:1.2rem;">$1</h3>').replace(/\n/g, '<br>');
+                                streamingText.innerHTML = formatAiHtml(fullText);
                                 content.scrollTop = content.scrollHeight;
                             }
                         } catch(e) {}
@@ -1645,12 +1667,7 @@ async function callOpenRouterStream(prompt, maxTokens, streamingEl, cursorEl, co
                         const text = data.choices?.[0]?.delta?.content;
                         if (text) {
                             fullText += text;
-                            const fmt = fullText
-                                .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#d4af37;">$1</strong>')
-                                .replace(/###\s*(.+)/g, '<h4 style="color:#d4af37;margin:1.2rem 0 0.5rem;">$1</h4>')
-                                .replace(/\n\n/g, '</p><p>')
-                                .replace(/\n/g, '<br>');
-                            streamingEl.innerHTML = '<p>' + fmt + '</p>';
+                            streamingEl.innerHTML = formatAiHtml(fullText);
                         }
                     } catch(e) {}
                 }
@@ -1918,13 +1935,7 @@ ${card.suit ? 'Масть: ' + card.suit : 'Старший Аркан'}
                             if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
                                 const newText = data.candidates[0].content.parts[0].text;
                                 fullText += newText;
-                                
-                                const formattedText = fullText
-                                    .replace(/\*\*(.+?)\*\*/g, '<strong style="color:#d4af37;">$1</strong>')
-                                    .replace(/###\s*(.+)/g, '<h4 style="color:#d4af37;margin:1.2rem 0 0.5rem;">$1</h4>')
-                                    .replace(/\n\n/g, '</p><p>')
-                                    .replace(/\n/g, '<br>');
-                                streamingText.innerHTML = '<p>' + formattedText + '</p>';
+                                streamingText.innerHTML = formatAiHtml(fullText);
                                 
                                 // Автоскрол
                                 const modalBox = content.closest('.interpretation-box');
@@ -2449,13 +2460,7 @@ ${quintessenceInfo}
                             if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
                                 const newText = data.candidates[0].content.parts[0].text;
                                 fullText += newText;
-                                
-                                const formattedText = fullText
-                                    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                                    .replace(/###\s*(.+)/g, '<h4 style="color:#d4af37;margin:1.2rem 0 0.5rem;">$1</h4>')
-                                    .replace(/\n\n/g, '</p><p>')
-                                    .replace(/\n/g, '<br>');
-                                streamingText.innerHTML = '<p>' + formattedText + '</p>';
+                                streamingText.innerHTML = formatAiHtml(fullText);
                                 
                                 // Автоскрол
                                 const modalContent = content.closest('.modal-content');
