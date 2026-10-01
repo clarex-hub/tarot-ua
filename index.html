@@ -1909,13 +1909,6 @@ ${card.suit ? 'Масть: ' + card.suit : 'Старший Аркан'}
         }
         
         if (response.status === 503 || response.status === 529) {
-            // Przeciążenie Gemini bywa chwilowe — 2 szybkie ponowienia zanim przełączymy na płatny OpenRouter
-            if (retryCount < 2) {
-                content.innerHTML = `<div class="interpretation-loading"><div class="spinner"></div><p style="color:#d4af37;">⏳ Gemini перевантажений, повторна спроба...</p></div>`;
-                await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 3000));
-                if (modal.classList.contains('hidden')) return;
-                return getPracticalInterpretation(cardId, retryCount + 1, myAbort);
-            }
             // Fallback to OpenRouter on server error
             const result = await callOpenRouterStream(
                 prompt, 2048, null, null, content,
@@ -2440,13 +2433,6 @@ ${quintessenceInfo}
         }
 
         if (response.status === 503 || response.status === 529) {
-            // Przeciążenie Gemini bywa chwilowe — 2 szybkie ponowienia zanim przełączymy na płatny OpenRouter
-            if (retryCount < 2) {
-                content.innerHTML = `<div class="interpretation-loading"><div class="spinner"></div><p style="color:#d4af37;">⏳ Gemini перевантажений, повторна спроба...</p></div>`;
-                await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 3000));
-                if (modal.classList.contains('hidden')) return;
-                return getGeminiInterpretation(retryCount + 1, myAbort);
-            }
             // Fallback to OpenRouter on server error
             const result = await callOpenRouterStream(
                 prompt, 16384, null, null, content,
