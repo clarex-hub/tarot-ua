@@ -521,7 +521,7 @@
 
 <script>
 // === KONFIGURACJA MODELI ===
-const GEMINI_MODEL = 'gemini-3.6-flash'; // stabilny GA, darmowy tier — następca 2.5 Flash (za ~rok trzeba przepiąć na nowszy)
+const GEMINI_MODEL = 'gemini-3.5-flash'; // darmowy tier — dojrzały GA; świeży 3.6 Flash był przeciążony (503) i ciągle wywalał na płatny OpenRouter
 const OPENROUTER_MODEL = 'google/gemini-3.6-flash'; // konkretny GA (OpenRouter nie ma aliasu "latest"; google/gemini-3-flash to preview)
 
 // === STAN GLOBALNY (chat + flagi) ===
@@ -1909,6 +1909,13 @@ ${card.suit ? 'Масть: ' + card.suit : 'Старший Аркан'}
         }
         
         if (response.status === 503 || response.status === 529) {
+            // Przeciążenie Gemini bywa chwilowe — 2 szybkie ponowienia zanim przełączymy na płatny OpenRouter
+            if (retryCount < 2) {
+                content.innerHTML = `<div class="interpretation-loading"><div class="spinner"></div><p style="color:#d4af37;">⏳ Gemini перевантажений, повторна спроба...</p></div>`;
+                await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 3000));
+                if (modal.classList.contains('hidden')) return;
+                return getPracticalInterpretation(cardId, retryCount + 1, myAbort);
+            }
             // Fallback to OpenRouter on server error
             const result = await callOpenRouterStream(
                 prompt, 2048, null, null, content,
@@ -2433,6 +2440,13 @@ ${quintessenceInfo}
         }
 
         if (response.status === 503 || response.status === 529) {
+            // Przeciążenie Gemini bywa chwilowe — 2 szybkie ponowienia zanim przełączymy na płatny OpenRouter
+            if (retryCount < 2) {
+                content.innerHTML = `<div class="interpretation-loading"><div class="spinner"></div><p style="color:#d4af37;">⏳ Gemini перевантажений, повторна спроба...</p></div>`;
+                await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 3000));
+                if (modal.classList.contains('hidden')) return;
+                return getGeminiInterpretation(retryCount + 1, myAbort);
+            }
             // Fallback to OpenRouter on server error
             const result = await callOpenRouterStream(
                 prompt, 16384, null, null, content,
